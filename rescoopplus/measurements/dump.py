@@ -53,8 +53,9 @@ onlyfiles = [f for f in os.listdir(meteopath) if isfile(join(meteopath, f))]
 d = None
 for onlyfile in onlyfiles:
     onlypath = os.path.join(meteopath, onlyfile)
-    mask = onlypath.find('20'):(onlypath.find('\.xls')-3)
-    date_ = datetime.strptime(onlypath[mask],'%Y-%m-%d')
+    _start = onlypath.find('20')
+    _end = onlypath.find('\.xls')-3
+    date_ = datetime.strptime(onlypath[_start:_end],'%Y-%m-%d')
     p = pd.read_excel(onlypath, skiprows=4)
     p.columns = ['station','province','tempMax','tempMin','tempMean',
                  'wind','windMax','rain0024', 'rain0006','rain0612','rain1218',
@@ -69,7 +70,7 @@ for onlyfile in onlyfiles:
         d = pd.concat([d,p])
 group_params = ['province','year','month']
 grouped = d.groupby(group_params).agg([np.sum, np.mean, np.min, np.max])
-d = grouped.reset_index()
+meteo = grouped.reset_index()
 
 
 ## Contracts
@@ -117,7 +118,7 @@ for contract_id,bills in allbills.items():
     meta = city_obj.read(meta['id_municipi'][0], ['state'])
     item.update({
         'province': meta['state'][1],
-        'province_uuid': str(uuid.uuid5(uuid.NAMESPACE_OID,meta['state'][1]))
+        'province_uuid': str(uuid.uuid5(uuid.NAMESPACE_OID,meta['state'][1].encode('utf-8')))
         })
 
     has_emp = False
