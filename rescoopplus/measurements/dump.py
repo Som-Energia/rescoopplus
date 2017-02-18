@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+from consolemsg import step, error, fail
 from os.path import isfile, join
 from datetime import datetime
 from datetime import timedelta, date
@@ -12,6 +13,7 @@ import pandas as pd
 import numpy as np
 import uuid
 import pickle
+import glob
 
 # WARNING: Quick/tricky implementation to export
 # REScoop Plus measurements to evalute EE programs
@@ -46,17 +48,16 @@ city_obj = client.model('res.municipi')
 meter_obj = client.model('giscedata.polissa')
 emp_obj = client.model('empowering.customize.profile.channel.log')
 
-## Metereological
+step("Metereological")
 
-meteopath = 'data/meteo'
-onlyfiles = [f for f in os.listdir(meteopath) if isfile(join(meteopath, f))]
+meteofiles = glob.glob('data/meteo/Aemet????-??-??.xls')
 d = None
-for onlyfile in onlyfiles:
-    onlypath = os.path.join(meteopath, onlyfile)
-    _start = onlypath.find('20')
-    _end = onlypath.find('\.xls')-3
-    date_ = datetime.strptime(onlypath[_start:_end],'%Y-%m-%d')
-    p = pd.read_excel(onlypath, skiprows=4)
+for meteofile in meteofiles:
+    _start = meteofile.find('20')
+    _end = meteofile.find('\.xls')-3
+    date_ = datetime.strptime(meteofile[_start:_end],'%Y-%m-%d')
+    step("\t"+str(date_))
+    p = pd.read_excel(meteofile, skiprows=4)
     p.columns = ['station','province','tempMax','tempMin','tempMean',
                  'wind','windMax','rain0024', 'rain0006','rain0612','rain1218',
                  'rain1824']
@@ -72,16 +73,16 @@ group_params = ['province','year','month']
 grouped = d.groupby(group_params).agg([np.sum, np.mean, np.min, np.max])
 meteo = grouped.reset_index()
 
-
-## Contracts
+step("Contracts")
 
 contracts_id = filetolist(filename)
 
 search_params = [
-        ('polissa_id', 'in', contracts_id),
-        ('data_final', '>', start),
-        ('data_final', '<', end),
-        ('invoice_id.type', '=', 'out_invoice')]
+    ('polissa_id', 'in', contracts_id),
+    ('data_final', '>', start),
+    ('data_final', '<', end),
+    ('invoice_id.type', '=', 'out_invoice'),
+]
 bills_id = bill_obj.search(search_params)
 search_params = ['polissa_id','data_inici','data_final',
     'dies','energia_kwh','invoice_id','polissa_tg','is_gkwh']
