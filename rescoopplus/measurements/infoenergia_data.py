@@ -162,8 +162,8 @@ if __name__ == '__main__':
         has_emp = False
         search_params = [('contract_id','=',contract_id), ('channel_id','=',1)]
         emps_sent = emp_obj.browse(search_params, order='date_sent asc').date_sent
+        first_emp_sent = emps_sent[0] if emps_sent else ''
         if emps_sent:
-            first_emp_sent = emps_sent[0]
             has_emp = True
 
         #Generationwkh 
@@ -274,22 +274,50 @@ if __name__ == '__main__':
                     '-', # Monthly bill charged
                     item['toutariff'], # Is charged using special tariffs
                     '1' if has_emp_ else '0',  # Has received EE leaflets
-                    first_emp_sent, # When received EE leaflets
                     '-', # Has participated in meetings 
                     '1' if has_tg_ else '0', # Smart meter installation 
                     '-', # Has received technical support 
                     '1' if has_gkwh_ else '0', # Is in generation action
                     '1' if has_emp_ else '0', # Is in empowering action
-                   ])) 
-            
-    unitEuro = u'€'
-  #  print unitEuro, contracts[0], contracts[1200], encoded_contracts[0], encoded_contracts[1200]
-    contracts_key = pd.DataFrame(zip(contracts, encoded_contracts), columns = ['contract, key'])
+                    first_emp_sent if has_emp_ else '', # When received EE leaflets
+                   ])
+    print data2file 
     step("Storing {} lines", len(data2file))
     contracts_key = pd.DataFrame(zip(contracts, encoded_contracts), columns = ['contract', 'key'])
     contracts_key.to_csv('Keys4Contracts.csv', index = False, sep = ';')
 
-    data = pd.DataFrame(data2file, columns = 'ID,Group,Member,Contract Type,Tariff,Meteo Region ID,Date of Mesurement,Actual Consumption (kWh),Predicted Consumption,Normalized Consumption (kWh),Heating,Cooking,Is Prosumer,kWh Produced,Heating degree days,Cooling degree days,Avg. Daily Temp (C) of Month,Avg. Daily Min Temp (C) of Month,Avg. Daily Max Temp (C) of Month,Precipitation,Consumer Avg Rate/kWh,Monthly Bill Charged,Special tariffs?,EE leaflets,First leaflets,Partcipation in Meetings,Smart meter installation,Technical Support?,Generation action'.split(','))
+    data = pd.DataFrame(data2file, columns = [
+        'ID',
+        'Group',
+        'Member',
+        'Contract Type',
+        'Tariff',
+        'Meteo Region ID',
+        'Date of Mesurement',
+        'Actual Consumption (kWh)',
+        'Predicted Consumption',
+        'Normalized Consumption (kWh)',
+        'Heating',
+        'Cooking',
+        'Is Prosumer',
+        'kWh Produced',
+        'Heating degree days',
+        'Cooling degree days',
+        'Avg. Daily Temp (C) of Month',
+        'Avg. Daily Min Temp (C) of Month',
+        'Avg. Daily Max Temp (C) of Month',
+        'Precipitation',
+        'Consumer Avg Rate/kWh',
+        'Monthly Bill Charged',
+        'Special tariffs?',
+        'EE leaflets',
+        'Partcipation in Meetings',
+        'Smart meter installation',
+        'Technical Support?',
+        'Generation action',
+        'Empowering action',
+        'First leaflets',
+        ])
 
     data.to_csv('checking_data.csv', index = False, sep = ';')
 
