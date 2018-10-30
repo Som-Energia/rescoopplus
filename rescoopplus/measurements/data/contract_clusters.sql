@@ -1,3 +1,6 @@
+-- Clusterizes the contracts depending on several aspects considered in the rescoop report
+-- like: domestic/comercial/industrial, autoproducer, energy efficiency actions and generation actions
+-- Usage: sql2csv.py -C dbconfig.py contract_clusters.sql --minyears 2
 select
     tarifa,
     is_home,
@@ -25,7 +28,7 @@ from (
     left join empowering_customize_profile_channel_log as infoenergia
        on contract.id = infoenergia.contract_id
     where
-        extract( year from now()) - extract(year from data_alta) > 2 and
+        extract( year from now()) - extract(year from data_alta) > %(minyears)s and
         contract.active = true and
         true
     group by
