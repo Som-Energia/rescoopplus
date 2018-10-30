@@ -36,34 +36,45 @@ def isodate(datestr):
 def isodatetime(datestr):
     return datetime.strptime(datestr, '%Y-%m-%d %H:%M:%S')
 
-def meteodata(meteofiles):
+def loadmeteofiles(meteofiles):
+    if os.path.exists('meteo.csv'):
+        meteo = pd.read_csv('meteo.csv', sep = ';', encoding='utf-8')
+        return meteo
 
     d = None
     for meteofile in meteofiles:
         _start = meteofile.find('20')
         _end = meteofile.find('\.xls')-3
-        date_ = datetime.strptime(meteofile[_start:_end],'%Y-%m-%d')
-        step("\t"+str(date_))
+        filedate = datetime.strptime(meteofile[_start:_end],'%Y-%m-%d')
+        step("\t"+str(filedate))
         p = pd.read_excel(meteofile, skiprows=4)
-        p.columns = ['station','province','tempMax','tempMin','tempMean',
-                     'wind','windMax','rain0024', 'rain0006','rain0612','rain1218',
-                     'rain1824']
-        p['year'] = date_.year
-        p['month'] = date_.month
-        p['day'] = date_.day
+        p.columns = [
+            'station','province',
+            'tempMax','tempMin','tempMean',
+            'wind','windMax',
+            'rain0024', 'rain0006','rain0612','rain1218','rain1824'
+        ]
+        p['year'] = filedate.year
+        p['month'] = filedate.month
+        p['day'] = filedate.day
 
         if not isinstance(d, pd.DataFrame):
             d = p
         else:
             d = pd.concat([d,p])
+    d.to_csv('meteo.csv', sep = ';', encoding='utf-8')
+    return d
 
+def meteodata(meteofiles):
+    d = loadmeteofiles(meteofiles)
     group_params = ['province','year','month']
     grouped = d.groupby(group_params).agg([np.sum, np.mean, np.min, np.max])
     meteo = grouped.reset_index()
     return meteo
 
 
-def get_allbills(contractsfile):
+def get_allbills(contractsfile, start, end):
+    step("Analizing bills for contracts ids on {} from {} to {}", contractsfile, start, end)
 
     bill_obj = client.model('giscedata.facturacio.factura')
     
@@ -115,30 +126,27 @@ if __name__ == '__main__':
 
     step("Metereological")
 
-    meteofiles = glob.glob('data/meteo/Aemet????-??-??.xls')
+    meteofiles = sorted(glob.glob('data/meteo/Aemet????-??-??.xls'))
     meteo = meteodata(meteofiles)
 
-    step("Contracts")
+    print meteo
 
-#to do: add this parameters to an yaml file:
-    filename = 'data/contracts.csv'
-    start = '2017-01-01'
-    end = '2018-01-01'
+    import sys
+    allbills = get_allbills(
+        contractsfile = sys.argv[1] if len(sys.argv)>1 else 'data/contracts.csv',
+        start = sys.argv[2] if len(sys.argv)>2 else '2017-01-01',
+        end = sys.argv[3] if len(sys.argv)>3 else '2018-01-01',
+        )
 
-    allbills = get_allbills(filename)
-
-    
     data2file = []
     contracts = []
     encoded_contracts = []
     for contract_id,bills in allbills.items():
-        print 'contract_id', contract_id,
         fields = ['name','titular', 'soci', 'cnae', 'tarifa','cups','tg', 'autoconsumo']
         contract = contract_obj.read(contract_id, fields)
-
+       # mod_contract = modcontract_obj.read(contract_id, 
         item = dict(
                id=str(uuid.uuid5(uuid.NAMESPACE_OID,contract['name'])),
-               group=0,
                member=(1 if contract['titular']==contract['soci'] else 0),
                type=('A' if contract['cnae'][0]==986 else 'B'),
                tariff = contract['tarifa'][1],
@@ -225,7 +233,7 @@ if __name__ == '__main__':
                 continue
             data2file.append([ 
                     item['id'], # ID
-                    str(item['group']), # Group
+                    '-', # Group ('1' if customer belongs to the control group, '0' if not, '-' if unspecified)
                     str(item['member']), # Is cooperative member
                     item['type'], # Contract type
                     item['tariff'], # Tariff 
