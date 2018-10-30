@@ -79,7 +79,7 @@ def get_allbills(contractsfile):
     bills_id = bill_obj.search(search_params)
 
     search_params = ['polissa_id','data_inici','data_final',
-        'dies','energia_kwh','invoice_id','polissa_tg']
+        'dies','energia_kwh','invoice_id','polissa_tg','is_gkwh']
     bills = bill_obj.read(bills_id, search_params)
 
     allbills = {}
@@ -159,50 +159,40 @@ if __name__ == '__main__':
 
         #get relevant data:
         #empowerment
-        has_emp = False
-        search_params = [('contract_id','=',contract_id), ('channel_id','=',1)]
-        emps_sent = emp_obj.browse(search_params, order='date_sent asc').date_sent
-        first_emp_sent = emps_sent[0] if emps_sent else ''
-        if emps_sent:
-            has_emp = True
 
-        #Generationwkh 
-        has_gkwh = False
-        search_params = [('contract_id','=',contract_id)]
-        gkwh = genkwh_obj.read(search_params)
-        if gkwh:
-            gkwh_id = genkwh_obj.read(search_params)[0]['member_id'][0]
-            print gkwh_id, 'generation_id'
-            date_gkwh = inv_obj.browse([('member_id','=',gkwh_id)], order='purchase_date asc').purchase_date
-            if date_gkwh:
-                first_gkwh_inv = date_gkwh[0]
-                has_gkwh = True
-
-        #Smart meter installation
-        has_tg = False
-        if item['tg'] == 1:
-            has_tg = True
-
-        #is prosumer?
-        is_prosumer = False
-        if item['autoconsumo'] == '01':
-            is_prosumer = True
-
-
-
+        empowering_reports_sent = emp_obj.browse([
+            ('contract_id','=',contract_id),
+            ('channel_id','=',1),
+            ],
+            order='date_sent asc'
+        ).date_sent
+        first_emp_sent = empowering_reports_sent[0] if empowering_reports_sent else ''
+ 
         measurements = []
 
+        has_gkwh = False
+        date_gkwh = datetime.today()
+        has_tg = False
+        date_tg = datetime.today()
         for key, billq in bills.items():
             # Tricky approach to manage refunding (use newer bill)
             bill = sorted(billq, key=lambda tup: tup[0],reverse=True)[0][1]
-            start_ = isodate(bill['data_inici'])
-            end_ = isodate(bill['data_final'])
+            billstart = isodate(bill['data_inici'])
+            billend = isodate(bill['data_final'])
             total = bill['energia_kwh']
             days = bill['dies']
             inc = total/float(days)
 
-            for d in daterange(start_, end_):
+            for d in daterange(billstart, billend):
                 measurements.append([d, inc])
+
+            if bill['is_gkwh']:
+                has_gkwh = True 
+                date_gkwh = min(date_gkwh,billstart)
+
+            if bill['polissa_tg']:
+                has_tg = True 
+                date_tg = min(date_tg,billstart)
 
         d = pd.DataFrame(measurements, columns=['timestamp','kWh']).set_index(['timestamp'])
         d['year'] = d.index.year
@@ -216,31 +206,15 @@ if __name__ == '__main__':
         # pd.merge(measurements, mmeteo, how='inner', on=['year','month'])
         # WARNING: Tricky approach using iteration instead of merge&apply
         for m in mmeasurements.iterrows():
-            has_gkwh_ = False
-            has_tg_ = False
-            has_emp_ = False
-            is_prosumer_ = False
             year_ = int(m[1]['year'])
             month_ = int(m[1]['month'])
-            date_ = datetime(year_,month_,25).strftime('%Y-%m-%d')
-        #    member_id = som_obj.search([('partner_id','=',partner_id)])
-        #    investment = inv_obj.serch((['member_id','=',member_id)])
-        #    has_tg = m['polissa_tg'] 
+            measurement_date = datetime(year_,month_,25)
 
-    #        if investment:
-    #            month_gkwh = investment['first_effective_date']
-            if has_gkwh and date_ >= first_gkwh_inv:
-                has_gkwh_ = True
-           
-            if has_tg:
-                has_tg_ = True
-         #   else:
-         #       has_tg_ = item['tg']
-            if has_emp and date_ >= first_emp_sent:
-                has_emp_ = True
+            has_gkwh_ = has_gkwh and measurement_date >= date_gkwh
+            has_tg_ = measurement_date >= date_tg if has_tg else item['tg']
+            has_emp_ = empowering_reports_sent and str(measurement_date) >= first_emp_sent
+            is_prosumer_ = item['autoconsumo'] == '01'
 
-            if is_prosumer:
-                is_prosumer_ = True
             mask = mmeteo['year']==year_
             ameteo = mmeteo[mask]
             mask = ameteo['month']==month_
@@ -270,16 +244,15 @@ if __name__ == '__main__':
                     str(ameteo['tempMean'].iloc[0]['amin']),
                     str(ameteo['tempMean'].iloc[0]['amax']),
                     str(ameteo['rain0024'].iloc[0]['sum']),
-                    '-', # Average rafe for kWh consumption
+                    '-', # Average rate for kWh consumption
                     '-', # Monthly bill charged
-                    item['toutariff'], # Is charged using special tariffs
-                    '1' if has_emp_ else '0',  # Has received EE leaflets
+                    item['toutariff'], # Is charged using special tariffs (DHx)
+                    '-',  # Has received EE leaflets
                     '-', # Has participated in meetings 
                     '1' if has_tg_ else '0', # Smart meter installation 
                     '-', # Has received technical support 
                     '1' if has_gkwh_ else '0', # Is in generation action
                     '1' if has_emp_ else '0', # Is in empowering action
-                    first_emp_sent if has_emp_ else '', # When received EE leaflets
                    ])
     print data2file 
     step("Storing {} lines", len(data2file))
@@ -316,7 +289,6 @@ if __name__ == '__main__':
         'Technical Support?',
         'Generation action',
         'Empowering action',
-        'First leaflets',
         ])
 
     data.to_csv('checking_data.csv', index = False, sep = ';')
