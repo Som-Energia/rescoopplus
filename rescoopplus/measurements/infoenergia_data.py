@@ -140,7 +140,7 @@ if __name__ == '__main__':
                id=str(uuid.uuid5(uuid.NAMESPACE_OID,contract['name'])),
                group=0,
                member=(1 if contract['titular']==contract['soci'] else 0),
-               type=('A' if contract['cnae'][1]=='9820' else 'B'),
+               type=('A' if contract['cnae'][0]==986 else 'B'),
                tariff = contract['tarifa'][1],
                toutariff = '0' if not contract['tarifa'][1].endswith('DHA') else '1',
                tg = 1 if contract['tg'] == '1' else 0, #Smart meter installation
