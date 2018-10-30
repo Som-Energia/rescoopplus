@@ -68,6 +68,7 @@ def get_allbills(contractsfile):
     bill_obj = client.model('giscedata.facturacio.factura')
     
     contracts_id = filetolist(contractsfile)
+    step("Analyzing {} contracts", len(contracts_id))
 
     search_params = [
         ('polissa_id', 'in', contracts_id),
@@ -92,6 +93,7 @@ def get_allbills(contractsfile):
             allbills[contract_id][key].append((invoice_id, bill))
         else:
             allbills[contract_id][key] = [(invoice_id,bill)]
+    step("Including {} invoices", len(allbills))
     return allbills
 
 
