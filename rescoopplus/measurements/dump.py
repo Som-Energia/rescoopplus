@@ -180,7 +180,7 @@ for contract_id,bills in allbills.items():
         month_ = int(m[1]['month'])
         date_ = datetime(year_,month_,25)
 
-        if has_gkwh and date_ >= month_gkwh:
+        if has_gkwh and date_ >= date_gkwh:
             has_gkwh_ = True
         if has_tg:
             if date_ >= date_tg:
