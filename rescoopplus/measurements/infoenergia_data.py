@@ -120,8 +120,8 @@ if __name__ == '__main__':
 
 #to do: add this parameters to an yaml file:
     filename = 'data/contracts.csv'
-    start = '2015-01-01'
-    end = '2016-01-01'
+    start = '2017-01-01'
+    end = '2018-01-01'
 
     allbills = get_allbills(filename)
 

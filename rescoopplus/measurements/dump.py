@@ -20,8 +20,8 @@ import glob
 
 
 filename = 'data/contracts.csv'
-start = '2015-01-01'
-end = '2016-01-01'
+start = '2017-01-01'
+end = '2018-01-01'
 
 def filetolist(filename):
    import csv
